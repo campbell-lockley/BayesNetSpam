@@ -1,43 +1,75 @@
 /* ****************************************************************************************************************** *
  * Name:        BayesNetEstimate.java
- * Description: 
+ * Description: Builds a bayesian network using a predefined netwrok structure and some sample date.
  * Author:      Campbell Lockley        studentID: 1178618
  * Date:        19/05/15
  * ****************************************************************************************************************** */
 
-/* ******* *
- * Imports *
- * ******* */
+/* Imports */
 import java.io.*;
 import java.util.*;
 
 /**
- *
+ * Constructs a {@link Node Node} array representation of a bayesian network.
+ * <p>
+ * BayesNetEstimate reads in a predefined structure for the bayesian network from a file and parses model data to 
+ * calculate the conditional probabilities for the nodes in the network.
+ * <p>
+ * Running {@link main(String[]) main} with the name of a file containing the network structure and the name of a file 
+ * with sample data will build the network and output each state with its parents and associated conditional 
+ * probabilities to a file called "output.txt".
  */
 public class BayesNetEstimate {
-        /* *************** *
-         * Private Members *
-         * *************** */
-        private Node[] bayesNet;                // 
-        private FileReader netFile;             // TODO: comment
-        private FileReader eventsFile;          // 
+        /* Private Members */
+        private Node[] bayesNet;                // Representation of bayesian network
+        private FileReader netFile;             // file specifying the network structure
+        private FileReader eventsFile;          // file with model data for calulating the CPTs
 
         /**
-         * TODO: comment
+         * Constructor
+         *
+         * @param netFileName Name of file containing structure of bayesian network.
+         * @param eventsFileName Name of file containing training data for bayesian network.
          */
-        public void run() throws IOException {
-                BufferedReader br;
-                String line;
+        public BayesNetEstimate(String netFileName, String eventsFileName) throws FileNotFoundException {
+                /* Try and open input files */
+                netFile = new FileReader(netFileName);
+                eventsFile = new FileReader(eventsFileName);
+        }
+
+        /**
+         * Constructs the bayesian network from the network structure file and the model data file.
+         *
+         * @return Representation of bayesian network.
+         */
+        public Node[] getBayesianNetwork() throws IOException {
+                HashMap<String, Integer> indices;
 
                 /* Parse net file and construct the bayesian network */
-                br = new BufferedReader(netFile);
-                ArrayList<Node> net = new ArrayList<Node>();
+                indices = readNetFile();
+
+                /* Parse events file to calculate estimate probabilities */
+                readDataFile(indices);
+                
+                return bayesNet;
+        }
+
+        /**
+         * Reads in the structure of the bayesian network from file and constructs the nodes in the network.
+         *
+         * @return HashMap of <node name, index> key-value pairs.
+         */
+        private HashMap<String, Integer> readNetFile() throws IOException {
+                BufferedReader br = new BufferedReader(netFile);
                 HashMap<String, Integer> indices = new HashMap<String, Integer>();
-                Scanner sc;
-                String name;
+                ArrayList<Node> net = new ArrayList<Node>();
                 ArrayList<Integer> pNodes;
                 int[] parents;
+                Scanner sc;
+                String line, name;
                 int index = 0;
+
+                /* Parse net file and construct the bayesian network */
                 while ((line = br.readLine()) != null) {
                         /* Parses line from network input file. Input file format should be:
                            [node name]: [[parent 1] [parent 2] ... ]                         */
@@ -61,20 +93,33 @@ public class BayesNetEstimate {
                 }
                 bayesNet = new Node[net.size()];
                 net.toArray(bayesNet);
+
                 br.close();
                 netFile.close();
 
-                /* Parse events file to calculate estimate probabilities */
-                br = new BufferedReader(eventsFile);
+                return indices;
+        }
+
+        /**
+         * Reads in model data for nodes in network and calculates CPTs for each node.
+         *
+         * @param indices HashMap <node name, index> key-value pairs. 
+         */
+        private void readDataFile(HashMap<String, Integer> indices) throws IOException {
+                BufferedReader br = new BufferedReader(eventsFile);
+                int[] filePos = new int[bayesNet.length];
+                boolean[] values = new boolean[bayesNet.length];
+                String[] vars;
+                String line;
+
                 /* Uses the first line from the input data file to find the relevant token indices in the rest of the 
                    file for Nodes which are in this Bayesian network.                                                 */
-                int[] filePos = new int[bayesNet.length];
-                String[] vars = br.readLine().split(",");
+                vars = br.readLine().split(",");
                 for (int i = 0; i < vars.length; i++) {
                         if (indices.containsKey(vars[i])) filePos[indices.get(vars[i])] = i;
                 }
 
-                boolean[] values = new boolean[bayesNet.length];
+                /* Parse events file to calculate estimate probabilities */
                 while ((line = br.readLine()) != null) {
                         vars = line.split(",");
 
@@ -91,43 +136,32 @@ public class BayesNetEstimate {
                                 bayesNet[i].update(pValues, values[i]);
                         }
                 }
+
                 br.close();
                 eventsFile.close();
-                
-                /* Output bayesian network with calculated conditional probabilities */
-                PrintWriter w = new PrintWriter(new File("output.txt"));
-                String s;
-                for (Node n : bayesNet) {
-                        w.println(printNode(n));
-                }
-                w.flush();
-                w.close();
         }
 
         /**
-         * Constructor
-         *
-         * @param netFileName Name of file containing structure of bayesian network.
-         * @param eventsFileName Name of file containing training data for bayesian network.
+         * Gets input files from command line args and builds the bayesian network.
+         * Prints resulting network with calculated conditional probabilities to "output.txt".
          */
-        public BayesNetEstimate(String netFileName, String eventsFileName) throws FileNotFoundException {
-                /* Try and open input files */
-                netFile = new FileReader(netFileName);
-                eventsFile = new FileReader(eventsFileName);
-        }
-
-        /** Gets input files from command line args and TODO: finish comment */
         public static void main(String[] args) throws FileNotFoundException, IOException {
                 /* If wrong arg num print usage and exit */
                 if (args.length != 2) {
                         System.out.println("Error: Incorrect number of arguments.");
-                        printUsage(System.out);
+                        printUsage(System.err);
                         return;
                 }
 
-                /* Run bayesian network estimate */
-                BayesNetEstimate bne = new BayesNetEstimate(args[0], args[1]);
-                bne.run();
+                /* Construct bayesian network ans output with calculated conditional probabilities */
+                PrintWriter w = new PrintWriter(new File("output.txt"));
+                BayesNetEstimate bNetEst = new BayesNetEstimate(args[0], args[1]);
+                Node[] bayesNet = bNetEst.getBayesianNetwork();
+                for (Node n : bayesNet) {
+                        w.println(printNode(n, bayesNet));
+                }
+                w.flush();
+                w.close();
         }
 
         /**
@@ -136,7 +170,7 @@ public class BayesNetEstimate {
          * @param n Node to print.
          * @return A string representation of a Node object.
          */
-        public String printNode(Node n) {
+        public static String printNode(Node n, Node[] bayesNet) {
                 StringBuilder sb = new StringBuilder();
 
                 /* 1: [Name]:                        */

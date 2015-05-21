@@ -1,30 +1,34 @@
 /* ****************************************************************************************************************** *
  * Name:        Node.java
- * Description: 
+ * Description: Representation of a node in a bayesian network.
  * Author:      Campbell Lockley        studentID: 1178618
  * Date:        19/05/15
  * ****************************************************************************************************************** */
 
-/* ******* *
- * Imports *
- * ******* */
-import java.util.*;
-
 /**
- * TODO: comment
+ * This is a Representation of a node in a bayesian network.
+ * <p>
+ * Nodes have:
+ * <ul>
+ *      <li>a name, </li>
+ *      <li>some parents, </li>
+ *      <li>and a conditional probability table (CPT).</li>
+ * </ul>
+ * <p>
+ * The probability of this node depends on the states of its parents, which determines the index into its CPT for the 
+ * conditional probability.
+ * <p>
+ * The probabilities in this implementation are represented as fractions with discrete numerator-denominator components.
+ *  This is to facilitate the calculation step. Calling the fraction's {@link Frac#getDouble() getDouble()} method will
+ * return the probability as a double.
  */
 public class Node {
-        /* ************** *
-         * Public members *
-         * ************** */
-        public int[] parents;           //
-        public Frac[] probs;            // The CPT of this node.
+        /* Package Private members */
+        protected int[] parents;        // Indices of this nodes parents in representation of bayesian network
+        protected Frac[] probs;         // The CPT of this node.
 
-        /* *************** *
-         * Private members *
-         * *************** */
-        private String name;            // TODO: comment
-
+        /* Private members */
+        private String name;            // Name of this node
 
         /** Constructor */
         public Node(String name, int[] parents) {

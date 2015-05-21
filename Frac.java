@@ -7,13 +7,13 @@
 
 /**
  * Simple representation of a fraction.
- * 
+ * <p>
  * Frac exposes two public members:
  * <ul>
  *      <li>num   - The numerator of the fraction.</li>
  *      <li>denom - The denominator of the fraction.</li>
  * </ul>
- * 
+ * <p>
  * Calling Frac's getDouble() method will calculate and return this fraction as a double.
  */
 public class Frac {
