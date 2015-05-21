@@ -18,8 +18,10 @@
  */
 public class Frac {
         /* Public Members */
-        public int num;         // Numerator
-        public int denom;       // Denominator
+        /** Numerator of fraction */
+        public int num;
+        /** Denominator of fraction */
+        public int denom;
 
         /** Constructor */
         public Frac(int num, int denom) {

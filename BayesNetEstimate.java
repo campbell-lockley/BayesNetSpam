@@ -18,12 +18,16 @@ import java.util.*;
  * Running {@link main(String[]) main} with the name of a file containing the network structure and the name of a file 
  * with sample data will build the network and output each state with its parents and associated conditional 
  * probabilities to a file called "output.txt".
+ * <p>
+ * Nodes in the network structure file must be declared in the order of parents first.
+ *
+ * @see Node
  */
 public class BayesNetEstimate {
         /* Private Members */
         private Node[] bayesNet;                // Representation of bayesian network
-        private FileReader netFile;             // file specifying the network structure
-        private FileReader eventsFile;          // file with model data for calulating the CPTs
+        private FileReader netFile;             // File specifying the network structure
+        private FileReader eventsFile;          // File with model data for calulating the CPTs
 
         /**
          * Constructor
@@ -57,7 +61,7 @@ public class BayesNetEstimate {
         /**
          * Reads in the structure of the bayesian network from file and constructs the nodes in the network.
          *
-         * @return HashMap of <node name, index> key-value pairs.
+         * @return HashMap of (node name, index) key-value pairs.
          */
         private HashMap<String, Integer> readNetFile() throws IOException {
                 BufferedReader br = new BufferedReader(netFile);
@@ -103,7 +107,7 @@ public class BayesNetEstimate {
         /**
          * Reads in model data for nodes in network and calculates CPTs for each node.
          *
-         * @param indices HashMap <node name, index> key-value pairs. 
+         * @param indices HashMap (node name, index) key-value pairs. 
          */
         private void readDataFile(HashMap<String, Integer> indices) throws IOException {
                 BufferedReader br = new BufferedReader(eventsFile);
@@ -153,52 +157,15 @@ public class BayesNetEstimate {
                         return;
                 }
 
-                /* Construct bayesian network ans output with calculated conditional probabilities */
+                /* Construct bayesian network and output with calculated conditional probabilities */
                 PrintWriter w = new PrintWriter(new File("output.txt"));
                 BayesNetEstimate bNetEst = new BayesNetEstimate(args[0], args[1]);
                 Node[] bayesNet = bNetEst.getBayesianNetwork();
                 for (Node n : bayesNet) {
-                        w.println(printNode(n, bayesNet));
+                        w.println(Node.printNode(n, bayesNet));
                 }
                 w.flush();
                 w.close();
-        }
-
-        /**
-         * Returns a string representation of a Node object.
-         *
-         * @param n Node to print.
-         * @return A string representation of a Node object.
-         */
-        public static String printNode(Node n, Node[] bayesNet) {
-                StringBuilder sb = new StringBuilder();
-
-                /* 1: [Name]:                        */
-                sb.append(n.getName());
-                sb.append(":\n");
-                /* 2: [[P1] [P2] ... ]               */
-                for (int i = 0; i < n.parents.length; i++) {
-                        sb.append(bayesNet[n.parents[i]].getName());
-                        if (i < (n.parents.length - 1)) sb.append(" ");
-                        else sb.append("\n");
-                }
-                /* 3: [[v1] [v2] ... ] [probability]
-                 * ...
-                 * N: [[v1] [v2] ... ] [probability] */
-                boolean[] pTableVals = new boolean[n.parents.length];
-                for (int i = (n.probs.length - 1); i >= 0; i--) {
-                        for (int j = 0; j < n.parents.length; j++) {
-                                sb.append((pTableVals[j]) ? "1" : "0");
-                                sb.append(", ");
-                                if ((i % (int)Math.pow(2, n.parents.length -j - 1)) == 0) {
-                                        pTableVals[j] = !pTableVals[j];
-                                }
-                        }
-                        sb.append(n.probs[i].getDouble());
-                        sb.append("\n");
-                }
-
-                return sb.toString();
         }
 
         /** Print Usage statement to specified PrintStream (i.e. System.out). */
@@ -206,7 +173,7 @@ public class BayesNetEstimate {
                 s.println("Usage: BayesNetEstimate [network file] [events file]\n" +
                           "             network file - The file which contains the structure of the bayesian network\n"+
                           "             events file  - The file which contains the data from which the probabilities " +
-                                       "of the bayesian network is estimated");
+                                                      "of the bayesian network is estimated");
         }
 }
 
