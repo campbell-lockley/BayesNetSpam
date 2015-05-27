@@ -8,11 +8,12 @@
 /* Imports */
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Constructs a bayesian network from a predefined structure and trains it with some training data. BayesNetPredict 
- * then makes predictions about the most probable state of an unknown variable in some test data, writting the 
- * corrected data out to the file "completedTest.csv".
+ * then makes predictions about the most probable state of an unknown variable (denoted by a "?") in some test data, 
+ * writting the corrected data out to the file "completedTest.csv".
  * <p>
  * The bayesian network is represented as a {@link Node Node} array.
  * <p>
@@ -52,56 +53,96 @@ public class BayesNetPredict {
          * The test data is corrected with the predictions and is written out to "completedTest.csv".
          */
         public void predict() throws IOException {
-                /* Construct bayesian network */
+                /* Construct and train bayesian network */
                 Node[] bayesNet = bNetEst.getBayesianNetwork();
 
+                /* Open I/O */
                 BufferedReader br = new BufferedReader(testFile);
                 PrintWriter w = new PrintWriter("completedTest.csv");
+
+                /* Echo header from input to output */
                 String line = br.readLine();
                 w.println(line);
 
                 /* Work out position of each node in the test input file */
-                HashMap<String, Integer> indices = new HashMap<String, Integer>();
-                for (int i = 0; i < bayesNet.length; i++) indices.put(bayesNet[i].getName(), i);
+                int index;
                 String[] vars = line.split(",");
                 int[] fileToNet = new int[vars.length];
                 int[] netToFile = new int[bayesNet.length];
+                HashMap<String, Integer> indices = new HashMap<String, Integer>();
+                for (int i = 0; i < bayesNet.length; i++) indices.put(bayesNet[i].getName(), i);
                 for (int i = 0; i < vars.length; i++) {
                         if (indices.containsKey(vars[i])) {
-                                fileToNet[i] = indices.get(vars[i]);
-                                netToFile[indices.get(vars[i])] = i;
+                                index = indices.get(vars[i]);
+                                fileToNet[i] = index;
+                                netToFile[index] = i;
                         }
                 }
 
-                /* Parse test file, making predictions from node's conditional probabilities, and write to output */
+                /* Parse test file, making predictions from exact event probabilities, and write to output */
                 int pos;
-                Node q;
-                boolean[] pValues;
-                double prob;
+                boolean[] values = new boolean[bayesNet.length];
+                double probTrue, probFalse;
                 while ((line = br.readLine()) != null) {
+                        /* Get values of nodes from input */
                         vars = line.split(",");
+                        for (int i = 0; i < bayesNet.length; i++) {
+                                values[i] = (vars[netToFile[i]].equals("1")) ? true : false;
+                        }
 
                         /* Find pos of missing variable (starting from back) */
                         for (pos = (vars.length - 1); pos >= 0; pos--) if (vars[pos].equals("?")) break;
-                        assert (pos >=0);
-                        q = bayesNet[fileToNet[pos]];
+                        assert (pos >=0);       // Must find query variable
 
-                        /* Find state of parents */
-                        pValues = new boolean[q.parents.length];
-                        for (int i = 0; i < pValues.length; i++) {
-                                pValues[i] = (vars[netToFile[q.parents[i]]].equals("1")) ? true : false;
-                        }
+                        /* Calculate probability for spam = true */
+                        values[fileToNet[pos]] = true;
+                        probTrue = calcExactEventProb(bayesNet, values);
 
-                        /* Get probability that node is true given parents */
-                        prob = q.getProb(pValues, true);
+                        /* Calculate probability for spam = false */
+                        values[fileToNet[pos]] = false;
+                        probFalse = calcExactEventProb(bayesNet, values);
 
                         /* Make prediction and write out */
-                        line = line.replaceFirst(java.util.regex.Pattern.quote("?"), (prob >= 0.5) ? "1" : "0");
+                        line = line.replaceFirst(Pattern.quote("?"), (probTrue >= probFalse) ? "1" : "0");
                         w.println(line);
                 }
                 br.close();
                 w.flush();
                 w.close();
+        }
+
+        /**
+         * Caclucates the exact event probabilities for the bayesian network given the specified model of the 
+         * variables.
+         * <p>
+         * i.e. ExactEventP(x1, ..., xn) = PRODUCT(P(xi | PARENTS(Xi)));
+         * 
+         * @param bayesNet The bayesian network.
+         * @param values The model for the variables.
+         * @return The exact event probability for the given model.
+         */
+        public double calcExactEventProb(Node[] bayesNet, boolean[] values) {
+                assert (values.length == bayesNet.length);
+
+                double prob = 1;
+
+                /* Calculate exact event probability */
+                Node n;
+                boolean[] pValues;
+                for (int i = 0; i < bayesNet.length; i++) {
+                        n = bayesNet[i];
+
+                        /* Find state of parents in model */
+                        pValues = new boolean[n.parents.length];
+                        for (int j = 0; j < pValues.length; j++) {
+                                pValues[j] = values[n.parents[j]];
+                        }
+
+                        /* Exact event probability is product of individual conditional probabilities */
+                        prob *= n.getProb(pValues, values[i]);
+                }
+
+                return prob;
         }
 
         /** 
@@ -115,12 +156,17 @@ public class BayesNetPredict {
                         return;
                 }
 
-                /* Construct bayesian network and classify test data */
-                BayesNetPredict bNetPred = new BayesNetPredict(args[0], args[1], args[2]);
-                bNetPred.predict();
+                try {
+                        /* Construct bayesian network and classify test data */
+                        BayesNetPredict bNetPred = new BayesNetPredict(args[0], args[1], args[2]);
+                        bNetPred.predict();
+                } catch (Exception e) {
+                        System.err.println("BayesNetPredict encountered and error:");
+                        e.printStackTrace();
+                }
         }
 
-        /** Print Usage statement to specified PrintStream (i.e. System.out). */
+        /** Print Usage statement to specified PrintStream (i.e. System.err). */
         private static void printUsage(PrintStream s) {
                 s.println("Usage: BayesNetPredict [network file] [training data file] [test data file]\n" +
                           "             network file       - The file which contains the structure of the bayesian " +
